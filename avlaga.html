@@ -1,0 +1,1401 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Авлагын удирдлага — UBCab Express</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg:#eef1f6; --ink:#1c2733; --muted:#6b7684; --line:#e1e5eb; --card:#ffffff;
+    --blue:#1a56c4; --blue-deep:#123a86; --green:#1f8a4c; --gold:#b8863a; --warn:#c0392b; --amber:#c97a12;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--bg); color:var(--ink); font:14px/1.45 'Segoe UI','Helvetica Neue',Arial,sans-serif;}
+  h1,h2,h3{margin:0;}
+  h3{font-size:15px; color:var(--blue-deep); margin-bottom:10px;}
+
+  /* ---------- Дэлгэцүүд (ачаалах / тохиргоо / нэвтрэх) ---------- */
+  .screen{display:none; min-height:100vh; align-items:center; justify-content:center; padding:24px;}
+  .screen.active{display:flex;}
+  .loginbox{width:100%; max-width:420px; background:var(--card); border-radius:14px; box-shadow:0 4px 24px rgba(20,40,80,.08); padding:34px 30px;}
+  .mark{font-size:12px; letter-spacing:.08em; color:var(--blue); font-weight:700; margin-bottom:6px;}
+  .loginbox h1{font-size:22px; color:var(--blue-deep); margin-bottom:6px;}
+  .sub{font-size:13px; color:var(--muted); margin-bottom:18px;}
+  .field{margin-bottom:13px;}
+  .field label, .lbl{display:block; font-size:12px; color:var(--muted); margin-bottom:5px;}
+  input[type=text],input[type=password],input[type=number],input[type=date],select,textarea{
+    width:100%; padding:9px 11px; border:1px solid var(--line); border-radius:8px; background:#fafbfc; font:inherit; color:var(--ink);
+  }
+  textarea{min-height:110px; resize:vertical;}
+  input:focus,select:focus,textarea:focus{outline:none; border-color:var(--blue);}
+  .btn{padding:9px 16px; border:none; border-radius:8px; background:var(--blue-deep); color:#fff; font:inherit; cursor:pointer; white-space:nowrap;}
+  .btn:hover{background:var(--blue);}
+  .btn.secondary{background:#fff; color:var(--blue-deep); border:1px solid var(--blue-deep);}
+  .btn.secondary:hover{background:#f0f4fb;}
+  .btn.danger{background:#fff; color:var(--warn); border:1px solid var(--warn);}
+  .btn.danger:hover{background:#fdf1ef;}
+  .btn.small{padding:4px 10px; font-size:12px;}
+  .btn.full{width:100%;}
+  .btn:disabled{background:#c7ccd3; border-color:#c7ccd3; color:#fff; cursor:not-allowed;}
+  .msg{margin-top:12px; padding:10px 12px; border-radius:8px; font-size:13px; display:none;}
+  .msg.show{display:block;}
+  .msg.ok{background:#e3f0e6; color:var(--green);}
+  .msg.err{background:#fbe7e4; color:var(--warn);}
+  .msg.info{background:#eaf1fc; color:var(--blue-deep);}
+  .msg.toast{position:fixed; left:50%; transform:translateX(-50%); top:14px; z-index:60; max-width:92%; box-shadow:0 6px 24px rgba(0,0,0,.18); margin:0;}
+  .warnbox{background:#fff6e5; border:1px solid #f0d9a8; color:#7a5300; border-radius:8px; padding:10px 12px; font-size:12.5px; margin-bottom:14px;}
+  .ver{margin-top:14px; font-size:11px; color:#9aa5a1; text-align:center;}
+
+  /* ---------- Апп ---------- */
+  #app{display:none; padding:24px;}
+  #app.active{display:block;}
+  .wrap{max-width:1240px; margin:0 auto;}
+  .banner{background:linear-gradient(135deg,var(--blue-deep),var(--blue)); border-radius:16px; color:#fff; padding:22px 28px;
+    display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:16px;}
+  .banner h1{font-size:21px; margin-bottom:4px;}
+  .banner .who{font-size:13px; opacity:.85;}
+  .banner .right{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+  .banner label{font-size:12px; opacity:.9;}
+  .banner input[type=date]{width:auto; padding:6px 8px;}
+  .banner .btn{background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.4);}
+  .banner .btn:hover{background:rgba(255,255,255,.26);}
+  .banner .btn.save{background:#fff; color:var(--blue-deep); font-weight:600;}
+  .dirty{display:none; background:#ffe9a8; color:#7a5300; border-radius:20px; padding:3px 10px; font-size:12px;}
+
+  .tabs{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px;}
+  .tab{padding:9px 16px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--muted); font:inherit; cursor:pointer;}
+  .tab.active{background:var(--blue-deep); color:#fff; border-color:var(--blue-deep);}
+  .panel{display:none;}
+  .panel.active{display:block;}
+  .box{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px; margin-bottom:16px;}
+  .toolbar{display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; margin-bottom:12px;}
+  .toolbar input[type=text], .toolbar input[type=number], .toolbar select{width:auto; min-width:150px;}
+  .toolbar .spacer{flex:1;}
+  .chk{display:flex; align-items:center; gap:6px; font-size:13px; color:var(--ink);}
+  .chk input{width:auto;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  .grid4{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px;}
+  .empty{color:var(--muted); text-align:center; padding:34px 10px;}
+
+  .kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px; margin-bottom:16px;}
+  .kpi{background:var(--card); border:1px solid var(--line); border-top:3px solid var(--blue); border-radius:10px; padding:14px 16px;}
+  .kpi.warn{border-top-color:var(--warn);} .kpi.green{border-top-color:var(--green);} .kpi.gold{border-top-color:var(--gold);}
+  .kpi .l{font-size:11px; letter-spacing:.03em; color:var(--muted); font-weight:700; margin-bottom:6px; text-transform:uppercase;}
+  .kpi .v{font-size:21px; font-weight:700;}
+  .kpi .n{font-size:12px; color:var(--muted); margin-top:3px;}
+
+  .tscroll{overflow-x:auto;}
+  table.grid{width:100%; border-collapse:collapse; font-size:13px;}
+  table.grid th{background:#f6f8fb; color:var(--muted); font-size:11px; font-weight:700; text-align:left; padding:9px 10px; border-bottom:1px solid var(--line); white-space:nowrap;}
+  table.grid td{padding:8px 10px; border-bottom:1px solid #eef1f5; vertical-align:top;}
+  table.grid .num{text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap;}
+  table.grid th.sortable{cursor:pointer; user-select:none;}
+  table.grid th.sortable:hover{color:var(--blue-deep);}
+  table.grid tr.clickable{cursor:pointer;}
+  table.grid tr.clickable:hover td{background:#f6f9ff;}
+  table.grid tr.total td{font-weight:700; border-top:2px solid var(--blue-deep); background:#fbfcfe;}
+  table.grid tr.sev1 td:first-child{box-shadow:inset 3px 0 0 #f3c969;}
+  table.grid tr.sev2 td:first-child{box-shadow:inset 3px 0 0 var(--warn);}
+  .b1{color:var(--amber);} .b2{color:#c0541b;} .b3{color:var(--warn);} .b4{color:#8e1d12; font-weight:700;}
+  .muted{color:var(--muted);}
+
+  .remcard{border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:12px; background:#fff;}
+  .remcard .top{display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:8px;}
+  .remcard .name{font-weight:700;}
+  .remcard textarea{min-height:0; font-size:13px; line-height:1.5;}
+
+  /* Акт */
+  .stmt .co{font-size:13px; color:var(--muted);}
+  .stmt h2{font-size:20px; margin:4px 0 12px; color:var(--blue-deep);}
+  table.kv td{padding:2px 14px 2px 0; font-size:13px;}
+  table.kv td:first-child{color:var(--muted);}
+  .sign{display:flex; gap:40px; margin-top:34px; font-size:13px;}
+  .sign div{flex:1; border-top:1px solid #333; padding-top:6px;}
+
+  /* Загвар/Попап */
+  .modal-back{position:fixed; inset:0; background:rgba(15,25,45,.45); display:none; align-items:center; justify-content:center; z-index:50; padding:20px;}
+  .modal-back.show{display:flex;}
+  .modal{background:#fff; border-radius:12px; padding:22px; width:100%; max-width:420px;}
+
+  @media (max-width:760px){
+    #app{padding:12px;} .grid2{grid-template-columns:1fr;}
+    .banner{padding:16px;}
+  }
+  @media print{
+    body{background:#fff;}
+    .no-print{display:none!important;}
+    #app{padding:0;}
+    .box{border:none; padding:0; margin:0;}
+    .tscroll{overflow:visible;}
+    .msg.toast{display:none!important;}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ АЧААЛАХ ============ -->
+<div id="screen-loading" class="screen active">
+  <div class="loginbox">
+    <div class="mark">UBCAB EXPRESS</div>
+    <h1>Авлагын удирдлага</h1>
+    <div class="sub" id="loadingMsg">Ачаалж байна…</div>
+  </div>
+</div>
+
+<!-- ============ АНХНЫ ТОХИРГОО ============ -->
+<div id="screen-setup" class="screen">
+  <div class="loginbox">
+    <div class="mark">UBCAB EXPRESS</div>
+    <h1>Анхны тохиргоо</h1>
+    <div class="sub">Нягтлан бодогчийн эрхийг үүсгэнэ. Өгөгдөл нууц үгээр шифрлэгдэж хадгалагдана.</div>
+    <div id="setupNewNote" style="display:none">
+      <div class="warnbox" style="background:#eaf1fc; border-color:#c9d9f5; color:#123a86">Энэ нь <b>шинэ, тусдаа</b> өгөгдлийн сан (нууц GitHub Gist) үүсгэнэ — цалингийн системтэй огт холбогдохгүй.</div>
+      <details class="field"><summary style="cursor:pointer; font-size:13px; color:var(--blue-deep)">Өмнө нь тохируулсан уу? Холбоосоо оруулах</summary>
+        <div style="margin-top:8px"><input type="text" id="connectLink" placeholder="https://…/avlaga.html#g=…&u=…" autocomplete="off">
+        <button class="btn small" style="margin-top:8px" onclick="connectExisting()">Холбох</button><div class="msg" id="connectMsg"></div></div></details>
+    </div>
+    <div class="warnbox"><b>Анхаар:</b> Энэ нууц үгийг мартвал өгөгдлийг сэргээх <b>боломжгүй</b> (сервер дээр нууц үг хадгалагддаггүй). Нууц үгээ найдвартай газар хадгалж, эх Excel файлуудаа устгалгүй үлдээгээрэй.</div>
+    <div class="field"><label>Нэвтрэх нэр (латин жижиг үсэг, тоо)</label><input type="text" id="setupUser" autocomplete="off" placeholder="ж: badamjunai"></div>
+    <div class="field"><label>Нэр</label><input type="text" id="setupName" autocomplete="off" placeholder="ж: Бадамжунай"></div>
+    <div class="field"><label>Нууц үг (10+ тэмдэгт, найруулга хэцүү)</label><input type="password" id="setupPass" autocomplete="new-password"></div>
+    <div class="field"><label>Нууц үг давтах</label><input type="password" id="setupPass2" autocomplete="new-password"></div>
+    <div class="field"><label>GitHub token (gist эрхтэй — зөвхөн үүсгэх/хадгалахад ашиглана, хадгалагдахгүй)</label><input type="password" id="setupToken" autocomplete="off" placeholder="ghp_…"></div>
+    <button class="btn full" id="setupBtn" onclick="doSetup()">Үүсгэх</button>
+    <div class="msg" id="setupMsg"></div>
+    <div class="ver" id="ver0"></div>
+  </div>
+</div>
+
+<!-- ============ НЭВТРЭХ ============ -->
+<div id="screen-login" class="screen">
+  <div class="loginbox">
+    <div class="mark">UBCAB EXPRESS</div>
+    <h1>Авлагын удирдлага</h1>
+    <div class="sub">Нэвтрэх нэр, нууц үгээ оруулна уу</div>
+    <div class="field"><label>Нэвтрэх нэр</label><input type="text" id="loginUser" autocomplete="username"></div>
+    <div class="field"><label>Нууц үг</label><input type="password" id="loginPass" autocomplete="current-password"></div>
+    <button class="btn full" id="loginBtn" onclick="doLogin()">Нэвтрэх</button>
+    <div class="msg" id="loginMsg"></div>
+    <div class="ver" id="ver1"></div>
+  </div>
+</div>
+
+<!-- ============ АПП ============ -->
+<div id="app">
+  <div class="wrap">
+    <div class="banner no-print">
+      <div>
+        <h1>Авлагын удирдлага</h1>
+        <div class="who" id="whoami"></div>
+      </div>
+      <div class="right">
+        <label for="asOf">Байдлаар:</label>
+        <input type="date" id="asOf" onchange="renderAll()">
+        <span class="dirty" id="dirtyLbl">● Хадгалаагүй өөрчлөлттэй</span>
+        <button class="btn save" id="saveBtn" onclick="saveAll()">Хадгалах</button>
+        <button class="btn" onclick="logout()">Гарах</button>
+      </div>
+    </div>
+
+    <div class="tabs no-print" id="tabs"></div>
+
+    <!-- Насжилт -->
+    <div class="panel" id="panelAging">
+      <div class="kpis" id="agKpis"></div>
+      <div class="box">
+        <div class="toolbar no-print">
+          <input type="text" id="agSearch" placeholder="Харилцагч хайх…" oninput="renderAging()">
+          <select id="agManager" onchange="renderAging()"></select>
+          <label class="chk"><input type="checkbox" id="agOnlyDebt" checked onchange="renderAging()"> Зөвхөн авлагатай</label>
+          <span class="spacer"></span>
+          <button class="btn secondary small" onclick="exportAging()">Excel татах</button>
+        </div>
+        <div class="tscroll" id="agTable"></div>
+      </div>
+    </div>
+
+    <!-- Харилцагч & акт -->
+    <div class="panel" id="panelStatement">
+      <div class="box no-print">
+        <div class="toolbar">
+          <div><span class="lbl">Харилцагч</span><input type="text" id="stCustomer" list="custList" placeholder="Харилцагчийн нэр…" oninput="renderStatement()" style="min-width:280px"></div>
+          <div><span class="lbl">Эхлэх огноо</span><input type="date" id="stFrom" onchange="renderStatement()"></div>
+          <div><span class="lbl">Дуусах огноо</span><input type="date" id="stTo" onchange="renderStatement()"></div>
+          <div id="stMgrRow" style="display:none"><span class="lbl">Хариуцсан менежер</span><select id="stManager" onchange="changeCustomerManager()"></select></div>
+          <span class="spacer"></span>
+          <button class="btn secondary small" onclick="copyStatement()">Текст хуулах</button>
+          <button class="btn small" onclick="window.print()">Хэвлэх / PDF</button>
+        </div>
+      </div>
+      <div class="box" id="stOut"></div>
+    </div>
+
+    <!-- Төлөлт -->
+    <div class="panel" id="panelPayments">
+      <div class="box no-print" id="payFormBox">
+        <h3>Төлөлт бүртгэх</h3>
+        <div class="grid4">
+          <div class="field"><label>Харилцагч</label><input type="text" id="payCustomer" list="custList" placeholder="Харилцагчийн нэр…" oninput="fillPayInvoices()"></div>
+          <div class="field"><label>Төлсөн огноо</label><input type="date" id="payDate"></div>
+          <div class="field"><label>Төлсөн дүн (₮)</label><input type="text" inputmode="decimal" id="payAmount" placeholder="0"></div>
+          <div class="field"><label>Нэхэмжлэх (заавал биш)</label><select id="payInvoice"><option value="">— Хамгийн хуучнаас нь хаана —</option></select></div>
+          <div class="field"><label>Тайлбар</label><input type="text" id="payNote"></div>
+        </div>
+        <button class="btn" onclick="addPayment()">Төлөлт нэмэх</button>
+      </div>
+      <div class="box">
+        <div class="toolbar no-print">
+          <input type="text" id="payFilter" placeholder="Харилцагч, нэхэмжлэх, тайлбараар хайх…" oninput="renderPayments()" style="min-width:280px">
+        </div>
+        <div class="tscroll" id="payTable"></div>
+      </div>
+    </div>
+
+    <!-- Сануулга -->
+    <div class="panel" id="panelReminders">
+      <div class="box no-print">
+        <div class="toolbar">
+          <div><span class="lbl">Хэтэрсэн хоног ≥</span><input type="number" id="rmMin" value="1" min="0" oninput="renderReminders()" style="width:90px"></div>
+          <div><select id="rmManager" onchange="renderReminders()"></select></div>
+          <span class="spacer"></span>
+          <button class="btn secondary small" onclick="copyAllReminders()">Бүгдийг хуулах</button>
+        </div>
+        <div class="sub" style="margin:0">Мессежийн загварыг "Тохиргоо" дээр засна. Доорх текстийг шаардлагатай бол засаад хуулж, имэйл/SMS/чатаар илгээнэ үү.</div>
+      </div>
+      <div id="rmList"></div>
+    </div>
+
+    <!-- Excel оруулах -->
+    <div class="panel" id="panelImport">
+      <div class="box">
+        <h3>Excel оруулах</h3>
+        <p class="sub" style="margin-top:0">Эхлээд загвараа татаж, баганы нэрийг дагаж бөглөнө үү. Нэг файлд "Нэхэмжлэх", "Төлөлт" хоёр sheet байж болно; олон sheet байвал тохирох бүгдийг уншина.
+          Нэхэмжлэх нь дугаараар шинэчлэгдэнэ (дахин оруулахад давхардахгүй). Давхардсан төлөлтийг автоматаар алгасна.</p>
+        <button class="btn secondary" onclick="downloadTemplate()">Excel загвар татах</button>
+      </div>
+      <div class="grid2">
+        <div class="box">
+          <h3>1. Нэхэмжлэх (авлага)</h3>
+          <div class="field"><input type="file" id="impInvFile" accept=".xlsx,.xls"></div>
+          <button class="btn" onclick="previewImport('inv')">Унших</button>
+        </div>
+        <div class="box">
+          <h3>2. Төлөлт</h3>
+          <div class="field"><input type="file" id="impPayFile" accept=".xlsx,.xls"></div>
+          <button class="btn" onclick="previewImport('pay')">Унших</button>
+        </div>
+      </div>
+      <div id="impPreview"></div>
+    </div>
+
+    <!-- Менежер -->
+    <div class="panel" id="panelManagers"><div id="mgBody"></div></div>
+
+    <!-- Тохиргоо -->
+    <div class="panel" id="panelSettings"><div id="setBody"></div></div>
+  </div>
+</div>
+
+<datalist id="custList"></datalist>
+<div class="msg toast" id="toast"></div>
+
+<div class="modal-back" id="tokenModal">
+  <div class="modal">
+    <h3>GitHub token</h3>
+    <p class="sub">Gist рүү хадгалахад хэрэгтэй (gist эрхтэй). Зөвхөн энэ хуудас нээлттэй байх хооронд санагдана, хаана ч хадгалагдахгүй.</p>
+    <div class="field"><input type="password" id="tokenInput" placeholder="ghp_…" autocomplete="off"></div>
+    <div style="display:flex; gap:8px; justify-content:flex-end;">
+      <button class="btn secondary" id="tokenCancel">Болих</button>
+      <button class="btn" id="tokenOk">Үргэлжлүүлэх</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* =========================================================================
+   ТОХИРГОО
+   Энэ программ цалингийн системээс ТУСДАА, өөрийн нууц Gist-д ШИФРЛЭГДСЭН өгөгдөл хадгална.
+   Анхны тохиргоо хийхэд Gist автоматаар үүснэ; холбоос (Gist ID) нь хөтөч дээр хадгалагдах бөгөөд
+   менежерүүдэд "Тохиргоо" хэсгээс авсан холбоосыг өгнө. Богино хаяг (avlaga.html) хүсвэл
+   доорх GIST_ID, GIST_USER-ийг бөглөж болно.
+   ========================================================================= */
+const APP_VERSION = 'Авлага v1.1';
+const CONFIG = {
+  GIST_ID: '',
+  GIST_USER: '',
+  FILENAME: 'receivables.enc.json',
+};
+let GIST = null;
+const rawUrl = () => 'https://gist.githubusercontent.com/' + GIST.user + '/' + GIST.id + '/raw/' + CONFIG.FILENAME;
+const apiUrl = () => 'https://api.github.com/gists/' + GIST.id;
+function parseGistLink(text){
+  const g = /[#&?]g=([0-9a-f]{20,40})/i.exec(text || ''), u = /[#&?]u=([A-Za-z0-9-]{1,39})/.exec(text || '');
+  return g && u ? { id:g[1].toLowerCase(), user:u[1] } : null;
+}
+function persistGist(){ try { localStorage.setItem('avlaga_gist', JSON.stringify(GIST)); } catch (e) { /* хамаагүй */ } }
+function resolveGist(){
+  if (CONFIG.GIST_ID && CONFIG.GIST_USER) return { id:CONFIG.GIST_ID, user:CONFIG.GIST_USER };
+  const fromHash = parseGistLink(location.hash);
+  if (fromHash){ GIST = fromHash; persistGist(); return fromHash; }
+  try { const g = JSON.parse(localStorage.getItem('avlaga_gist') || 'null'); if (g && g.id && g.user) return g; } catch (e) { /* хамаагүй */ }
+  return null;
+}
+function shareLink(){
+  const base = location.origin + location.pathname;
+  return (CONFIG.GIST_ID && CONFIG.GIST_USER) ? base : base + '#g=' + GIST.id + '&u=' + GIST.user;
+}
+const KDF_ITER = 200000;
+const BUCKET_LABELS = ['Хугацаа болоогүй', '1–30 хоног', '31–60 хоног', '61–90 хоног', '90+ хоног'];
+const DEFAULT_TEMPLATE =
+  'Сайн байна уу, {харилцагч}.\n' +
+  'Таны доорх нэхэмжлэхүүдийн төлбөр хугацаа хэтэрсэн байна:\n' +
+  '{жагсаалт}\n' +
+  'Нийт: {нийт}₮ ({огноо}-ны байдлаар).\n' +
+  'Төлбөрөө шилжүүлж, гүйлгээний утгад нэхэмжлэхийн дугаарыг бичнэ үү. Баярлалаа.\n' +
+  'Юбикаб Экспресс ХХК';
+
+/* ===== Туслах функцүүд ===== */
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = n => Math.round(n || 0).toLocaleString('mn-MN');
+const money = n => fmt(n) + '₮';
+const pad2 = n => String(n).padStart(2, '0');
+const r2 = x => Math.round(x * 100) / 100;
+const normName = s => String(s == null ? '' : s).replace(/\s+/g, ' ').trim().toUpperCase();
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+function mkErr(code, msg){ const e = new Error(msg); e.code = code; return e; }
+
+function dayNum(iso){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+  if (!m) return NaN;
+  return Math.round(Date.UTC(+m[1], +m[2] - 1, +m[3]) / 86400000);
+}
+function isoFromDay(n){
+  const d = new Date(n * 86400000);
+  return d.getUTCFullYear() + '-' + pad2(d.getUTCMonth() + 1) + '-' + pad2(d.getUTCDate());
+}
+function isoFromParts(y, m, d){
+  const iso = y + '-' + pad2(m) + '-' + pad2(d);
+  return isoFromDay(dayNum(iso)) === iso ? iso : null;
+}
+function todayISO(){ const d = new Date(); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+const showDate = iso => iso ? iso.replace(/-/g, '.') : '';
+
+function parseDateCell(v){
+  if (v == null || v === '') return null;
+  if (v instanceof Date && !isNaN(v)) return isoFromParts(v.getFullYear(), v.getMonth() + 1, v.getDate());
+  if (typeof v === 'number'){
+    if (v > 20000 && v < 80000 && window.XLSX && XLSX.SSF){ const p = XLSX.SSF.parse_date_code(v); if (p) return isoFromParts(p.y, p.m, p.d); }
+    return null;
+  }
+  const s = String(v).trim();
+  let m = /^(\d{4})[-./](\d{1,2})[-./](\d{1,2})/.exec(s);
+  if (m) return isoFromParts(+m[1], +m[2], +m[3]);
+  m = /^(\d{1,2})[-./](\d{1,2})[-./](\d{4})/.exec(s);
+  if (m) return isoFromParts(+m[3], +m[2], +m[1]);
+  return null;
+}
+function parseAmount(v){
+  if (typeof v === 'number') return isFinite(v) ? v : NaN;
+  if (v == null) return NaN;
+  let s = String(v).replace(/[₮\s\u00a0]/g, '').replace(/,/g, '');
+  if (s === '') return NaN;
+  let neg = false;
+  if (/^\(.*\)$/.test(s)){ neg = true; s = s.slice(1, -1); }
+  const n = Number(s);
+  return isNaN(n) ? NaN : (neg ? -n : n);
+}
+
+const TRANS = {'а':'a','б':'b','в':'v','г':'g','д':'d','е':'ye','ё':'yo','ж':'j','з':'z','и':'i','й':'i','к':'k','л':'l','м':'m','н':'n','о':'o','ө':'u','п':'p','р':'r','с':'s','т':'t','у':'u','ү':'u','ф':'f','х':'kh','ц':'ts','ч':'ch','ш':'sh','щ':'sh','ъ':'','ы':'i','ь':'','э':'e','ю':'yu','я':'ya'};
+function suggestUsername(name){
+  let out = '';
+  String(name || '').trim().toLowerCase().split('').forEach(ch => { if (TRANS[ch] != null) out += TRANS[ch]; else if (/[a-z0-9]/.test(ch)) out += ch; });
+  return out;
+}
+function genPassword(len){
+  len = len || 10;
+  const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
+  const limit = 256 - (256 % chars.length);
+  const buf = new Uint8Array(1);
+  let pw;
+  do {
+    pw = '';
+    while (pw.length < len){ crypto.getRandomValues(buf); if (buf[0] >= limit) continue; pw += chars[buf[0] % chars.length]; }
+  } while (!/[a-z]/.test(pw) || !/[2-9]/.test(pw));
+  return pw;
+}
+
+/* ===== Шифрлэлт (AES-256-GCM, PBKDF2) ===== */
+const te = new TextEncoder(), td = new TextDecoder();
+function b64e(bytes){ let s = ''; const CH = 0x8000; for (let i = 0; i < bytes.length; i += CH) s += String.fromCharCode.apply(null, bytes.subarray(i, i + CH)); return btoa(s); }
+function b64d(str){ const s = atob(str); const out = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i); return out; }
+async function deriveKey(password, salt, iter){
+  const km = await crypto.subtle.importKey('raw', te.encode(password), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name:'PBKDF2', salt, iterations:iter, hash:'SHA-256' }, km, { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']);
+}
+async function gzipBytes(bytes){
+  const cs = new CompressionStream('gzip'); const w = cs.writable.getWriter(); w.write(bytes); w.close();
+  return new Uint8Array(await new Response(cs.readable).arrayBuffer());
+}
+async function gunzipBytes(bytes){
+  const ds = new DecompressionStream('gzip'); const w = ds.writable.getWriter(); w.write(bytes); w.close();
+  return new Uint8Array(await new Response(ds.readable).arrayBuffer());
+}
+async function encryptJSON(obj, password, iter){
+  let bytes = te.encode(JSON.stringify(obj)); let z = 0;
+  if (typeof CompressionStream !== 'undefined'){ bytes = await gzipBytes(bytes); z = 1; }
+  const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveKey(password, salt, iter);
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name:'AES-GCM', iv }, key, bytes));
+  return { s:b64e(salt), i:b64e(iv), c:b64e(ct), z };
+}
+async function decryptJSON(blob, password, iter){
+  const key = await deriveKey(password, b64d(blob.s), iter);
+  let bytes;
+  try { bytes = new Uint8Array(await crypto.subtle.decrypt({ name:'AES-GCM', iv:b64d(blob.i) }, key, b64d(blob.c))); }
+  catch (e){ throw mkErr('BAD_PASSWORD', 'Нууц үг буруу'); }
+  if (blob.z){
+    if (typeof DecompressionStream === 'undefined') throw mkErr('NO_GZIP', 'Энэ хөтөч gzip дэмжихгүй байна. Chrome/Edge/Safari-гийн сүүлийн хувилбар ашиглана уу.');
+    bytes = await gunzipBytes(bytes);
+  }
+  return JSON.parse(td.decode(bytes));
+}
+
+/* Файлд нэвтрэх нэр харагдахгүйн тулд бүртгэлийг нэрний SHA-256 hash-аар түлхүүрлэнэ */
+async function acctKey(username){
+  const h = new Uint8Array(await crypto.subtle.digest('SHA-256', te.encode('avlaga:' + String(username).trim().toLowerCase())));
+  let out = ''; h.forEach(b => { out += b.toString(16).padStart(2, '0'); });
+  return out;
+}
+
+/* ===== Gist холболт ===== */
+async function fetchWrapperPublic(){
+  const res = await fetch(rawUrl() + '?_=' + Date.now(), { cache:'no-store' });
+  if (res.status === 404) return null;
+  if (!res.ok) throw mkErr('NET', 'Gist уншихад алдаа (' + res.status + ')');
+  const text = await res.text();
+  try { return JSON.parse(text); } catch (e){ throw mkErr('PARSE', 'Файлын формат буруу байна'); }
+}
+function apiHeaders(token){ return { 'Authorization':'token ' + token, 'Accept':'application/vnd.github+json' }; }
+async function apiGetWrapper(token){
+  const res = await fetch(apiUrl(), { headers: apiHeaders(token) });
+  if (res.status === 401 || res.status === 403) throw mkErr('TOKEN', 'GitHub token буруу эсвэл эрхгүй (' + res.status + ')');
+  if (!res.ok) throw mkErr('API', 'Gist уншихад алдаа (' + res.status + ')');
+  const g = await res.json();
+  const f = g.files && g.files[CONFIG.FILENAME];
+  if (!f) return null;
+  let text = f.content;
+  if (f.truncated || text == null){ const r = await fetch(f.raw_url + '?_=' + Date.now()); text = await r.text(); }
+  return JSON.parse(text);
+}
+async function createGist(token, w){
+  const res = await fetch('https://api.github.com/gists', {
+    method:'POST',
+    headers: Object.assign({ 'Content-Type':'application/json' }, apiHeaders(token)),
+    body: JSON.stringify({ description:'UBCab авлага (шифрлэгдсэн өгөгдөл)', public:false, files:{ [CONFIG.FILENAME]:{ content:JSON.stringify(w) } } })
+  });
+  if (res.status === 401 || res.status === 403) throw mkErr('TOKEN', 'GitHub token буруу эсвэл gist эрхгүй (' + res.status + ')');
+  if (!res.ok) throw mkErr('API', 'Gist үүсгэхэд алдаа (' + res.status + ')');
+  const g = await res.json();
+  if (!g.id || !g.owner || !g.owner.login) throw mkErr('API', 'Gist үүссэн боловч хариу таарсангүй');
+  return { id:String(g.id).toLowerCase(), user:g.owner.login };
+}
+async function apiPutWrapper(token, w){
+  const res = await fetch(apiUrl(), {
+    method:'PATCH',
+    headers: Object.assign({ 'Content-Type':'application/json' }, apiHeaders(token)),
+    body: JSON.stringify({ files: { [CONFIG.FILENAME]: { content: JSON.stringify(w) } } })
+  });
+  if (res.status === 401 || res.status === 403) throw mkErr('TOKEN', 'GitHub token буруу эсвэл эрхгүй (' + res.status + ')');
+  if (!res.ok) throw mkErr('API', 'Gist бичихэд алдаа (' + res.status + ')');
+}
+
+/* ===== Өгөгдлийн бүтэц =====
+   D = { v, company, settings:{termDays, reminderTemplate}, managers:{username:{name,password}},
+         customers:{KEY:{name,regNo,manager,managerRaw}}, invoices:[{customer,no,date,due,amount,note}],
+         payments:[{id,customer,invoiceNo,date,amount,note}] }                                  */
+let wrapper = null, session = null, D = null, pending = null, idleTimer = null;
+const ui = { tab:'aging', sortKey:'total', sortDir:-1, lastAging:[], stText:'', remTexts:{} };
+
+function emptyData(){
+  return { v:1, company:'Юбикаб Экспресс ХХК', settings:{ termDays:30, reminderTemplate:DEFAULT_TEMPLATE }, managers:{}, customers:{}, invoices:[], payments:[] };
+}
+function ensureDefaults(d){
+  d.settings = d.settings || {};
+  if (!(d.settings.termDays >= 0)) d.settings.termDays = 30;
+  if (!d.settings.reminderTemplate) d.settings.reminderTemplate = DEFAULT_TEMPLATE;
+  d.managers = d.managers || {}; d.customers = d.customers || {}; d.invoices = d.invoices || []; d.payments = d.payments || [];
+  if (!d.company) d.company = 'Юбикаб Экспресс ХХК';
+}
+function managerSlice(u){
+  const custs = {};
+  Object.keys(D.customers).forEach(k => { if (D.customers[k].manager === u) custs[k] = D.customers[k]; });
+  return {
+    v:1, company:D.company,
+    me:{ username:u, name:(D.managers[u] && D.managers[u].name) || u, role:'manager' },
+    settings:{ termDays:D.settings.termDays, reminderTemplate:D.settings.reminderTemplate },
+    customers:custs,
+    invoices:D.invoices.filter(i => custs[i.customer]),
+    payments:D.payments.filter(p => custs[p.customer])
+  };
+}
+async function buildWrapper(rev){
+  const accounts = {};
+  const jobs = [];
+  D.me = { username:session.username, name:session.name, role:'accountant' };
+  jobs.push((async () => {
+    accounts[await acctKey(session.username)] = await encryptJSON(D, session.password, KDF_ITER);
+  })());
+  Object.keys(D.managers).forEach(u => {
+    const m = D.managers[u];
+    if (!m.password) return;
+    jobs.push((async () => {
+      accounts[await acctKey(u)] = await encryptJSON(managerSlice(u), m.password, KDF_ITER);
+    })());
+  });
+  await Promise.all(jobs);
+  return { v:2, rev, iter:KDF_ITER, updatedAt:new Date().toISOString(), accounts };
+}
+
+/* ===== Тооцоо: насжилт ===== */
+function computeCustomer(key, c, asOfDay, invs0, pays0){
+  const cents = x => Math.round(x * 100);
+  const invs = (invs0 || []).slice().sort((a, b) => dayNum(a.due) - dayNum(b.due) || dayNum(a.date) - dayNum(b.date) || String(a.no).localeCompare(String(b.no)));
+  const rem = new Map(); let pool = 0;
+  invs.forEach(i => { const a = cents(i.amount); if (a > 0) rem.set(i.no, (rem.get(i.no) || 0) + a); else pool += -a; });
+  (pays0 || []).forEach(p => {
+    const a = cents(p.amount);
+    if (p.invoiceNo && rem.has(p.invoiceNo)){ const r = rem.get(p.invoiceNo); const use = Math.min(r, a); rem.set(p.invoiceNo, r - use); pool += a - use; }
+    else pool += a;
+  });
+  for (const i of invs){
+    if (pool <= 0) break;
+    const r = rem.get(i.no);
+    if (!(r > 0)) continue;
+    const use = Math.min(r, pool); rem.set(i.no, r - use); pool -= use;
+  }
+  const buckets = [0, 0, 0, 0, 0]; let maxDays = 0; const open = []; let totalRem = 0;
+  invs.forEach(i => {
+    const r = rem.get(i.no) || 0;
+    if (r <= 0) return;
+    const days = asOfDay - dayNum(i.due);
+    const bi = days <= 0 ? 0 : days <= 30 ? 1 : days <= 60 ? 2 : days <= 90 ? 3 : 4;
+    buckets[bi] += r; totalRem += r;
+    if (days > maxDays) maxDays = days;
+    open.push({ no:i.no, date:i.date, due:i.due, amount:i.amount, rem:r / 100, days });
+  });
+  const overdue = (buckets[1] + buckets[2] + buckets[3] + buckets[4]) / 100;
+  return { key, name:c.name, manager:c.manager || '', regNo:c.regNo || '', buckets:buckets.map(x => x / 100),
+           total:totalRem / 100, credit:pool / 100, balance:(totalRem - pool) / 100, overdue, maxDays, open };
+}
+function computeAll(asOfISO){
+  const asOf = asOfISO || ($('asOf') && $('asOf').value) || todayISO();
+  const asOfDay = dayNum(asOf);
+  const invBy = new Map(), payBy = new Map();
+  D.invoices.forEach(i => { if (i.date > asOf) return; if (!invBy.has(i.customer)) invBy.set(i.customer, []); invBy.get(i.customer).push(i); });
+  D.payments.forEach(p => { if (p.date > asOf) return; if (!payBy.has(p.customer)) payBy.set(p.customer, []); payBy.get(p.customer).push(p); });
+  return Object.keys(D.customers).map(k => computeCustomer(k, D.customers[k], asOfDay, invBy.get(k), payBy.get(k)));
+}
+function buildStatement(key, fromISO, toISO){
+  const entries = [];
+  D.invoices.filter(i => i.customer === key).forEach(i => entries.push({ date:i.date, kind:'inv', ref:i.no, note:i.note || '', debit:i.amount > 0 ? i.amount : 0, credit:i.amount < 0 ? -i.amount : 0, ord:0 }));
+  D.payments.filter(p => p.customer === key).forEach(p => entries.push({ date:p.date, kind:'pay', ref:p.invoiceNo || '', id:p.id, note:p.note || '', debit:0, credit:p.amount, ord:1 }));
+  entries.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : (a.ord - b.ord || String(a.ref).localeCompare(String(b.ref))));
+  let opening = 0; const rows = [];
+  entries.forEach(e => {
+    if (fromISO && e.date < fromISO) opening = r2(opening + e.debit - e.credit);
+    else if (!toISO || e.date <= toISO) rows.push(e);
+  });
+  let bal = opening, td0 = 0, tc0 = 0;
+  rows.forEach(e => { bal = r2(bal + e.debit - e.credit); e.balance = bal; td0 += e.debit; tc0 += e.credit; });
+  return { opening, rows, closing:bal, totalDebit:r2(td0), totalCredit:r2(tc0) };
+}
+
+/* ===== Excel унших ===== */
+const INV_FIELDS = {
+  customer:['харилцагч','харилцагчийн нэр','хэрэглэгч','мерчант','мерчантын нэр','байгууллага','байгууллагын нэр','customer','client'],
+  regNo:['регистр','регистрийн дугаар','харилцагчийн регистр','харилцагчийн код','харилцагчийн дугаар'],
+  no:['нэхэмжлэхийн дугаар','нэхэмжлэх','нэхэмжлэх №','нэхэмжлэхийн №','баримтын дугаар','дугаар','№','invoice','invoice no','invoice number'],
+  date:['нэхэмжилсэн огноо','нэхэмжлэхийн огноо','огноо','үүсгэсэн огноо','date','invoice date'],
+  term:['төлбөрийн хугацаа хоног','төлбөрийн нөхцөл','төлөх хоног','кредит хоног','хугацаа хоног','хоног','term days','payment terms'],
+  due:['төлөх огноо','төлбөр төлөх огноо','төлөх хугацаа','төлбөрийн хугацаа','хугацаа','эцсийн хугацаа','дуусах огноо','due','due date'],
+  amount:['дүн','нэхэмжлэхийн дүн','нийт дүн','төлөх дүн','нэхэмжилсэн дүн','борлуулалтын дүн','amount','total'],
+  manager:['менежер','борлуулалтын менежер','хариуцсан менежер','хариуцагч','хариуцсан ажилтан','manager','sales manager'],
+  note:['тайлбар','тэмдэглэл','гүйлгээний утга','note','comment']
+};
+const PAY_FIELDS = {
+  customer:INV_FIELDS.customer,
+  regNo:INV_FIELDS.regNo,
+  invoiceNo:['нэхэмжлэхийн дугаар','нэхэмжлэх','нэхэмжлэх №','нэхэмжлэхийн №','баримтын дугаар','invoice','invoice no'],
+  date:['төлсөн огноо','төлбөрийн огноо','гүйлгээний огноо','төлсөн өдөр','огноо','date','payment date'],
+  amount:['төлсөн дүн','төлбөрийн дүн','гүйлгээний дүн','төлөлт','орлого','дүн','amount','paid'],
+  note:['тайлбар','тэмдэглэл','гүйлгээний утга','note','comment']
+};
+const normHeader = s => String(s == null ? '' : s).toLowerCase().replace(/[^\p{L}\p{N}№]+/gu, ' ').replace(/\s+/g, ' ').trim();
+function aliasMap(fields){ const m = {}; Object.keys(fields).forEach(f => fields[f].forEach(a => { m[normHeader(a)] = f; })); return m; }
+const INV_MAP = aliasMap(INV_FIELDS), PAY_MAP = aliasMap(PAY_FIELDS);
+const PAY_ONLY = new Set(['төлсөн дүн','төлсөн огноо','төлбөрийн дүн','гүйлгээний огноо','гүйлгээний дүн','төлсөн өдөр']);
+const INV_ONLY = new Set(['төлөх огноо','төлбөр төлөх огноо','менежер','борлуулалтын менежер','хариуцсан менежер','нэхэмжилсэн огноо','нэхэмжлэхийн огноо','нэхэмжлэхийн дүн','нэхэмжилсэн дүн']);
+
+function detectHeader(rows, fields, amap, required, rejectSet){
+  let best = null;
+  for (let r = 0; r < Math.min(rows.length, 25); r++){
+    const row = rows[r] || [];
+    const hs = row.map(normHeader);
+    if (hs.some(h => rejectSet.has(h))) continue;
+    const colMap = {};
+    hs.forEach((h, ci) => {
+      if (!h) return;
+      let f = amap[h];
+      if (!f){
+        for (const fld of Object.keys(fields)){
+          if (colMap[fld] != null) continue;
+          if (fields[fld].some(a => { const na = normHeader(a); return na.length >= 4 && (' ' + h + ' ').indexOf(' ' + na + ' ') >= 0; })){ f = fld; break; }
+        }
+      }
+      if (f && colMap[f] == null) colMap[f] = ci;
+    });
+    const score = Object.keys(colMap).length;
+    if (required.every(f => colMap[f] != null) && (!best || score > best.score)) best = { rowIdx:r, colMap, score };
+  }
+  return best;
+}
+const cellStr = v => v == null ? '' : String(v).trim();
+
+function parseInvoiceRows(rows){
+  const h = detectHeader(rows, INV_FIELDS, INV_MAP, ['customer','no','date','amount'], PAY_ONLY);
+  if (!h) return { noHeader:true, items:[], errors:[] };
+  const items = [], errors = [];
+  for (let r = h.rowIdx + 1; r < rows.length; r++){
+    const row = rows[r] || [];
+    const g = f => h.colMap[f] != null ? row[h.colMap[f]] : undefined;
+    if (['customer','no','amount','date'].every(f => cellStr(g(f)) === '')) continue;
+    const errs = [];
+    const customerName = cellStr(g('customer')).replace(/\s+/g, ' ');
+    const no = cellStr(g('no'));
+    if (!customerName) errs.push('Харилцагч хоосон');
+    if (!no) errs.push('Нэхэмжлэхийн дугаар хоосон');
+    const date = parseDateCell(g('date'));
+    if (!date) errs.push('Огноо буруу');
+    const amount = parseAmount(g('amount'));
+    if (isNaN(amount)) errs.push('Дүн буруу'); else if (amount === 0) errs.push('Дүн 0 байна');
+    let due = null;
+    const dueRaw = g('due');
+    if (cellStr(dueRaw) !== ''){
+      due = parseDateCell(dueRaw);
+      if (!due){
+        const n = parseAmount(dueRaw);
+        if (!isNaN(n) && n >= 0 && n < 1000 && date) due = isoFromDay(dayNum(date) + Math.round(n));
+        else errs.push('Төлөх огноо буруу');
+      }
+    }
+    if (!due && date){
+      let t = parseAmount(g('term'));
+      if (isNaN(t) || t < 0) t = D.settings.termDays;
+      due = isoFromDay(dayNum(date) + Math.round(t));
+    }
+    if (errs.length){ errors.push({ row:r + 1, msg:errs.join(', '), customer:customerName, no }); continue; }
+    items.push({ customerName, regNo:cellStr(g('regNo')), no, date, due, amount:r2(amount), managerText:cellStr(g('manager')), note:cellStr(g('note')), row:r + 1 });
+  }
+  return { items, errors };
+}
+function parsePaymentRows(rows){
+  const h = detectHeader(rows, PAY_FIELDS, PAY_MAP, ['customer','date','amount'], INV_ONLY);
+  if (!h) return { noHeader:true, items:[], errors:[] };
+  const items = [], errors = [];
+  for (let r = h.rowIdx + 1; r < rows.length; r++){
+    const row = rows[r] || [];
+    const g = f => h.colMap[f] != null ? row[h.colMap[f]] : undefined;
+    if (['customer','date','amount'].every(f => cellStr(g(f)) === '')) continue;
+    const errs = [];
+    const customerName = cellStr(g('customer')).replace(/\s+/g, ' ');
+    if (!customerName) errs.push('Харилцагч хоосон');
+    const date = parseDateCell(g('date'));
+    if (!date) errs.push('Огноо буруу');
+    const amount = parseAmount(g('amount'));
+    if (isNaN(amount)) errs.push('Дүн буруу'); else if (amount <= 0) errs.push('Төлсөн дүн 0-ээс их байх ёстой');
+    if (errs.length){ errors.push({ row:r + 1, msg:errs.join(', '), customer:customerName, no:cellStr(g('invoiceNo')) }); continue; }
+    items.push({ customerName, regNo:cellStr(g('regNo')), invoiceNo:cellStr(g('invoiceNo')), date, amount:r2(amount), note:cellStr(g('note')), row:r + 1 });
+  }
+  return { items, errors };
+}
+function parseWorkbook(wb, type){
+  const items = [], errors = [], sheets = [];
+  wb.SheetNames.forEach(name => {
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header:1, defval:null, raw:true });
+    const res = type === 'inv' ? parseInvoiceRows(rows) : parsePaymentRows(rows);
+    if (res.noHeader) return;
+    sheets.push({ name, ok:res.items.length, bad:res.errors.length });
+    res.items.forEach(x => { x.sheet = name; items.push(x); });
+    res.errors.forEach(x => { x.sheet = name; errors.push(x); });
+  });
+  return { items, errors, sheets };
+}
+function readFileBuffer(file){
+  return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(r.error || new Error('Файл уншиж чадсангүй')); r.readAsArrayBuffer(file); });
+}
+
+/* ===== Менежер холбох ===== */
+function managerName(u){
+  if (!u) return '—';
+  if (D.managers[u]) return D.managers[u].name || u;
+  if (D.me && D.me.username === u) return D.me.name || u;
+  return u;
+}
+function resolveManager(text){
+  const t = normName(text);
+  if (!t) return '';
+  for (const u of Object.keys(D.managers)){ if (normName(u) === t || normName(D.managers[u].name) === t) return u; }
+  return '';
+}
+function relinkManagers(){
+  Object.values(D.customers).forEach(c => {
+    if (c.manager && !D.managers[c.manager]){ c.manager = ''; }
+    if (!c.manager && c.managerRaw) c.manager = resolveManager(c.managerRaw);
+  });
+}
+
+/* ===== Импортыг хэрэгжүүлэх ===== */
+function applyInvoices(items){
+  const stats = { added:0, updated:0, unchanged:0, newCustomers:0 };
+  const idx = new Map();
+  D.invoices.forEach((i, n) => idx.set(i.customer + '\u0001' + i.no, n));
+  items.forEach(it => {
+    const key = normName(it.customerName);
+    let c = D.customers[key];
+    if (!c){ c = D.customers[key] = { name:it.customerName, regNo:'', manager:'', managerRaw:'' }; stats.newCustomers++; }
+    if (it.regNo) c.regNo = it.regNo;
+    if (it.managerText){ c.managerRaw = it.managerText; c.manager = resolveManager(it.managerText); }
+    const k = key + '\u0001' + it.no;
+    const rec = { customer:key, no:it.no, date:it.date, due:it.due, amount:it.amount, note:it.note };
+    if (idx.has(k)){
+      const old = D.invoices[idx.get(k)];
+      if (old.date !== rec.date || old.due !== rec.due || old.amount !== rec.amount || (old.note || '') !== rec.note){ D.invoices[idx.get(k)] = rec; stats.updated++; } else stats.unchanged++;
+    } else { D.invoices.push(rec); idx.set(k, D.invoices.length - 1); stats.added++; }
+  });
+  return stats;
+}
+const paySig = p => [p.customer, p.date, Math.round(p.amount * 100), p.invoiceNo || ''].join('|');
+function planPayments(items){
+  const existing = {};
+  D.payments.forEach(p => { const s = paySig(p); existing[s] = (existing[s] || 0) + 1; });
+  const seen = {}; const fresh = [], dups = [];
+  items.forEach(it => {
+    const p = { customer:normName(it.customerName), invoiceNo:it.invoiceNo, date:it.date, amount:it.amount };
+    const s = paySig(p); seen[s] = (seen[s] || 0) + 1;
+    if (seen[s] <= (existing[s] || 0)) dups.push(it); else fresh.push(it);
+  });
+  return { fresh, dups };
+}
+function applyPayments(items){
+  let newCustomers = 0;
+  items.forEach(it => {
+    const key = normName(it.customerName);
+    if (!D.customers[key]){ D.customers[key] = { name:it.customerName, regNo:it.regNo || '', manager:'', managerRaw:'' }; newCustomers++; }
+    D.payments.push({ id:uid(), customer:key, invoiceNo:it.invoiceNo || '', date:it.date, amount:it.amount, note:it.note || '' });
+  });
+  return { added:items.length, newCustomers };
+}
+
+/* ===== Дэлгэц, нэвтрэлт ===== */
+function showScreen(id){
+  ['screen-loading','screen-setup','screen-login'].forEach(s => $(s).classList.toggle('active', s === id));
+  $('app').classList.toggle('active', id === 'app');
+}
+function showMsg(el, text, kind){ el.className = 'msg show ' + kind; el.textContent = text; }
+function hideMsg(el){ el.className = 'msg'; el.textContent = ''; }
+function setToast(text, kind, ms){
+  const t = $('toast'); t.className = 'msg toast show ' + kind; t.textContent = text;
+  clearTimeout(setToast._t);
+  if (ms) setToast._t = setTimeout(() => { t.className = 'msg toast'; }, ms);
+}
+
+async function init(){
+  ['ver0','ver1'].forEach(id => { const e = $(id); if (e) e.textContent = APP_VERSION; });
+  showScreen('screen-loading');
+  $('loadingMsg').textContent = 'Ачаалж байна…';
+  if (!window.crypto || !crypto.subtle){ $('loadingMsg').textContent = 'Энэ хуудас HTTPS (аюулгүй холболт)-оор нээгдэх ёстой.'; return; }
+  GIST = resolveGist();
+  if (!GIST){ $('setupNewNote').style.display = ''; showScreen('screen-setup'); return; }
+  $('setupNewNote').style.display = 'none';
+  try { wrapper = await fetchWrapperPublic(); }
+  catch (e){ $('loadingMsg').innerHTML = esc(e.message) + ' <button class="btn small" onclick="init()">Дахин оролдох</button>'; return; }
+  if (!wrapper || !wrapper.accounts || !Object.keys(wrapper.accounts).length) showScreen('screen-setup');
+  else showScreen('screen-login');
+}
+
+async function doSetup(){
+  const u = $('setupUser').value.trim().toLowerCase(), name = $('setupName').value.trim();
+  const p = $('setupPass').value, p2 = $('setupPass2').value, token = $('setupToken').value.trim();
+  const msg = $('setupMsg'), btn = $('setupBtn');
+  if (!/^[a-z0-9_.-]{3,30}$/.test(u)) return showMsg(msg, 'Нэвтрэх нэр: латин жижиг үсэг, тоо, 3–30 тэмдэгт байна.', 'err');
+  if (p.length < 10) return showMsg(msg, 'Нууц үг хамгийн багадаа 10 тэмдэгт байна.', 'err');
+  if (p !== p2) return showMsg(msg, 'Нууц үг таарахгүй байна.', 'err');
+  if (!token) return showMsg(msg, 'GitHub token оруулна уу.', 'err');
+  btn.disabled = true; showMsg(msg, 'Үүсгэж байна…', 'info');
+  try {
+    const data = emptyData();
+    data.me = { username:u, name:name || u, role:'accountant' };
+    const blob = await encryptJSON(data, p, KDF_ITER);
+    const w = { v:2, rev:1, iter:KDF_ITER, updatedAt:new Date().toISOString(), accounts:{ [await acctKey(u)]: blob } };
+    let created = false;
+    if (!GIST){
+      GIST = await createGist(token, w); persistGist(); created = true;
+    } else {
+      const cur = await apiGetWrapper(token);
+      if (cur && cur.accounts && Object.keys(cur.accounts).length) throw mkErr('EXISTS', 'Аль хэдийн тохируулагдсан байна. Хуудсыг шинэчлээд нэвтэрнэ үү.');
+      await apiPutWrapper(token, w);
+    }
+    wrapper = w;
+    session = { username:u, role:'accountant', name:name || u, password:p, data, rev:1, token, dirty:false };
+    $('setupPass').value = ''; $('setupPass2').value = ''; $('setupToken').value = ''; hideMsg(msg);
+    enterApp();
+    if (created){ setTab('settings'); setToast('Шинэ Gist үүслээ ✓ "Тохиргоо" дээрх холбоосыг менежерүүдэд өгнө үү.', 'ok', 9000); }
+  } catch (e){
+    if (e.code === 'API' || e.code === 'TOKEN' || e.code === 'EXISTS'){ /* GIST-ийг шинээр үүсгээгүй бол буцаах шаардлагагүй */ }
+    showMsg(msg, 'Алдаа: ' + e.message, 'err');
+  }
+  finally { btn.disabled = false; }
+}
+function connectExisting(){
+  const g = parseGistLink($('connectLink').value.trim()), m = $('connectMsg');
+  if (!g) return showMsg(m, 'Холбоос буруу байна. "…avlaga.html#g=…&u=…" хэлбэртэй байх ёстой.', 'err');
+  GIST = g; persistGist(); init();
+}
+
+async function doLogin(){
+  const u = $('loginUser').value.trim().toLowerCase(), p = $('loginPass').value;
+  const msg = $('loginMsg'), btn = $('loginBtn');
+  const bad = 'Нэвтрэх нэр эсвэл нууц үг буруу байна.';
+  if (!u || !p) return showMsg(msg, 'Нэвтрэх нэр, нууц үгээ оруулна уу.', 'err');
+  btn.disabled = true; showMsg(msg, 'Шалгаж байна…', 'info');
+  try {
+    try { const w = await fetchWrapperPublic(); if (w) wrapper = w; } catch (e) { /* өмнө ачаалсныг ашиглана */ }
+    const acct = wrapper && wrapper.accounts && wrapper.accounts[await acctKey(u)];
+    if (!acct) return showMsg(msg, bad, 'err');
+    let data;
+    try { data = await decryptJSON(acct, p, wrapper.iter || KDF_ITER); }
+    catch (e){ return showMsg(msg, e.code === 'BAD_PASSWORD' ? bad : 'Алдаа: ' + e.message, 'err'); }
+    const me = data.me || {};
+    session = { username:u, role:me.role === 'accountant' ? 'accountant' : 'manager', name:me.name || u, password:p, data, rev:wrapper.rev || 0, token:'', dirty:false };
+    $('loginPass').value = ''; hideMsg(msg);
+    enterApp();
+  } finally { btn.disabled = false; }
+}
+document.addEventListener('DOMContentLoaded', () => {
+  $('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+  $('loginUser').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+});
+
+function logout(reason){
+  if (session && session.dirty && !confirm('Хадгалаагүй өөрчлөлт байна. Гарвал алдагдана. Гарах уу?')) return;
+  session = null; D = null; pending = null;
+  $('toast').className = 'msg toast'; $('toast').textContent = '';
+  ['agKpis','agTable','stOut','payTable','rmList','impPreview','mgBody','setBody'].forEach(id => { $(id).innerHTML = ''; });
+  window.onbeforeunload = null;
+  clearTimeout(idleTimer);
+  showScreen('screen-login');
+  if (typeof reason === 'string') showMsg($('loginMsg'), reason, 'info');
+}
+function resetIdle(){
+  clearTimeout(idleTimer);
+  if (!session) return;
+  idleTimer = setTimeout(() => { if (session && !session.dirty) logout('Удаан идэвхгүй байсан тул автоматаар гарлаа.'); else resetIdle(); }, 30 * 60 * 1000);
+}
+['click','keydown','touchstart'].forEach(ev => document.addEventListener(ev, resetIdle, { passive:true }));
+
+function markDirty(){ if (!session) return; session.dirty = true; updateDirty(); }
+function updateDirty(){
+  const on = !!(session && session.dirty);
+  $('dirtyLbl').style.display = on ? 'inline-block' : 'none';
+  window.onbeforeunload = on ? (e => { e.preventDefault(); e.returnValue = ''; return ''; }) : null;
+}
+
+function tabList(){
+  const t = [['aging','Насжилт'],['statement','Харилцагч & акт'],['payments','Төлөлт'],['reminders','Сануулга']];
+  if (session.role === 'accountant') t.push(['import','Excel оруулах'],['managers','Менежер'],['settings','Тохиргоо']);
+  return t;
+}
+function enterApp(){
+  D = session.data; ensureDefaults(D);
+  showScreen('app');
+  $('whoami').textContent = (session.name || session.username) + ' · ' + (session.role === 'accountant' ? 'Нягтлан бодогч' : 'Борлуулалтын менежер');
+  $('asOf').value = todayISO();
+  $('saveBtn').style.display = session.role === 'accountant' ? '' : 'none';
+  $('payFormBox').style.display = session.role === 'accountant' ? '' : 'none';
+  $('payDate').value = todayISO();
+  $('tabs').innerHTML = tabList().map(([k, l]) => '<button class="tab" data-act="tab" data-tab="' + k + '">' + esc(l) + '</button>').join('');
+  refreshLookups();
+  setTab('aging');
+  resetIdle(); updateDirty();
+}
+function setTab(name){
+  ui.tab = name;
+  const map = { aging:'panelAging', statement:'panelStatement', payments:'panelPayments', reminders:'panelReminders', import:'panelImport', managers:'panelManagers', settings:'panelSettings' };
+  Object.keys(map).forEach(k => $(map[k]).classList.toggle('active', k === name));
+  document.querySelectorAll('#tabs .tab').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  renderTab(name);
+}
+function renderTab(name){
+  if (!D) return;
+  ({ aging:renderAging, statement:renderStatement, payments:renderPayments, reminders:renderReminders,
+     import:() => {}, managers:renderManagers, settings:renderSettings }[name] || (() => {}))();
+}
+function renderAll(){ if (!D) return; refreshLookups(); renderTab(ui.tab); }
+
+function refreshLookups(){
+  const names = Object.values(D.customers).map(c => c.name).sort((a, b) => a.localeCompare(b, 'mn'));
+  $('custList').innerHTML = names.map(n => '<option value="' + esc(n) + '"></option>').join('');
+  const isAcct = session.role === 'accountant';
+  const mgrOpts = Object.keys(D.managers).sort().map(u => '<option value="' + esc(u) + '">' + esc(D.managers[u].name || u) + '</option>').join('');
+  ['agManager','rmManager'].forEach(id => {
+    const el = $(id), cur = el.value;
+    el.innerHTML = '<option value="">Бүх менежер</option><option value="__none__">Менежергүй</option>' + mgrOpts;
+    el.value = cur; el.style.display = isAcct ? '' : 'none';
+  });
+  const st = $('stManager'), cur2 = st.value;
+  st.innerHTML = '<option value="">Менежергүй</option>' + mgrOpts; st.value = cur2;
+}
+
+/* ===== Насжилт ===== */
+function sortVal(r, k){
+  if (k === 'name') return normName(r.name);
+  if (k === 'manager') return normName(managerName(r.manager));
+  if (k === 'maxDays') return r.maxDays;
+  if (/^b\d$/.test(k)) return r.buckets[+k[1]];
+  return r.total;
+}
+function renderAging(){
+  if (!D) return;
+  const q = normName($('agSearch').value), mg = $('agManager').value, onlyDebt = $('agOnlyDebt').checked;
+  let all = computeAll();
+  if (session.role === 'accountant' && mg) all = all.filter(r => mg === '__none__' ? !r.manager : r.manager === mg);
+  const sum = f => all.reduce((s, r) => s + f(r), 0);
+  const total = sum(r => r.total), overdue = sum(r => r.overdue), over90 = sum(r => r.buckets[4]), credit = sum(r => r.credit);
+  const debtors = all.filter(r => r.total > 0.005).length;
+  $('agKpis').innerHTML =
+    '<div class="kpi"><div class="l">Нийт авлага</div><div class="v">' + money(total) + '</div><div class="n">' + debtors + ' харилцагч</div></div>' +
+    '<div class="kpi warn"><div class="l">Хугацаа хэтэрсэн</div><div class="v">' + money(overdue) + '</div><div class="n">' + (total > 0 ? Math.round(overdue / total * 100) : 0) + '% нийт авлагаас</div></div>' +
+    '<div class="kpi warn"><div class="l">90+ хоног</div><div class="v">' + money(over90) + '</div><div class="n">Эрсдэл өндөр</div></div>' +
+    '<div class="kpi green"><div class="l">Хугацаа болоогүй</div><div class="v">' + money(sum(r => r.buckets[0])) + '</div></div>' +
+    (credit > 0.005 ? '<div class="kpi gold"><div class="l">Илүү төлөлт</div><div class="v">' + money(credit) + '</div><div class="n">Урьдчилж төлсөн</div></div>' : '');
+  let rows = all.filter(r => (!q || normName(r.name).indexOf(q) >= 0) && (!onlyDebt || r.total > 0.005));
+  rows.sort((a, b) => { const x = sortVal(a, ui.sortKey), y = sortVal(b, ui.sortKey); return (x < y ? -1 : x > y ? 1 : 0) * ui.sortDir; });
+  ui.lastAging = rows;
+  if (!rows.length){ $('agTable').innerHTML = '<div class="empty">' + (Object.keys(D.customers).length ? 'Илэрц олдсонгүй.' : 'Одоогоор өгөгдөл алга. ' + (session.role === 'accountant' ? '"Excel оруулах" хэсгээс нэхэмжлэхээ оруулна уу.' : '')) + '</div>'; return; }
+  const arrow = k => ui.sortKey === k ? (ui.sortDir < 0 ? ' ▼' : ' ▲') : '';
+  const th = (k, label, num) => '<th class="sortable' + (num ? ' num' : '') + '" data-act="sort" data-col="' + k + '">' + label + arrow(k) + '</th>';
+  const LIMIT = 500, shown = rows.slice(0, LIMIT);
+  const tot = [0, 0, 0, 0, 0]; let totAll = 0;
+  rows.forEach(r => { r.buckets.forEach((b, i) => tot[i] += b); totAll += r.total; });
+  const showMgr = session.role === 'accountant';
+  let h = '<table class="grid"><thead><tr>' + th('name', 'Харилцагч') + (showMgr ? th('manager', 'Менежер') : '') +
+    BUCKET_LABELS.map((l, i) => th('b' + i, l, true)).join('') + th('total', 'Нийт авлага', true) + th('maxDays', 'Хэтэрсэн хоног', true) + '</tr></thead><tbody>';
+  shown.forEach(r => {
+    const sev = r.maxDays > 90 ? ' sev2' : r.maxDays > 30 ? ' sev1' : '';
+    const mname = r.manager ? managerName(r.manager) : '—';
+    h += '<tr class="clickable' + sev + '" data-act="openStatement" data-key="' + esc(r.key) + '"><td>' + esc(r.name) + '</td>' + (showMgr ? '<td class="muted">' + esc(mname) + '</td>' : '') +
+      r.buckets.map((b, i) => '<td class="num' + (i ? ' b' + i : '') + '">' + (b ? fmt(b) : '<span class="muted">–</span>') + '</td>').join('') +
+      '<td class="num"><b>' + fmt(r.total) + '</b></td><td class="num">' + (r.maxDays > 0 ? r.maxDays : '–') + '</td></tr>';
+  });
+  h += '<tr class="total"><td colspan="' + (showMgr ? 2 : 1) + '">Нийт (' + rows.length + ' харилцагч)</td>' + tot.map(b => '<td class="num">' + fmt(b) + '</td>').join('') + '<td class="num">' + fmt(totAll) + '</td><td></td></tr></tbody></table>';
+  if (rows.length > LIMIT) h += '<div class="muted" style="padding:8px 2px">Эхний ' + LIMIT + ' харилцагчийг харуулж байна. Хайлтаар нарийвчилна уу.</div>';
+  $('agTable').innerHTML = h;
+}
+function exportAging(){
+  if (!ui.lastAging.length) return setToast('Татах өгөгдөл алга.', 'info', 3000);
+  const aoa = [['Харилцагч','Менежер'].concat(BUCKET_LABELS, ['Нийт авлага','Хэтэрсэн хоног'])];
+  ui.lastAging.forEach(r => aoa.push([r.name, r.manager ? managerName(r.manager) : ''].concat(r.buckets, [r.total, r.maxDays])));
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), 'Насжилт');
+  XLSX.writeFile(wb, 'avlaga_nasjilt_' + $('asOf').value + '.xlsx');
+}
+
+/* ===== Харилцагч & акт ===== */
+function findCustomerKey(name){ const k = normName(name); return k && D.customers[k] ? k : null; }
+function openStatement(key){ $('stCustomer').value = D.customers[key].name; setTab('statement'); }
+function changeCustomerManager(){
+  if (session.role !== 'accountant') return;
+  const key = findCustomerKey($('stCustomer').value); if (!key) return;
+  D.customers[key].manager = $('stManager').value; D.customers[key].managerRaw = '';
+  markDirty(); renderStatement();
+}
+function renderStatement(){
+  if (!D) return;
+  const out = $('stOut'), name = $('stCustomer').value, key = findCustomerKey(name);
+  $('stMgrRow').style.display = 'none'; ui.stText = '';
+  if (!key){ out.innerHTML = '<div class="empty">' + (name ? 'Харилцагч олдсонгүй.' : 'Харилцагчаа сонгоно уу…') + '</div>'; return; }
+  const c = D.customers[key], from = $('stFrom').value, to = $('stTo').value, asOf = $('asOf').value;
+  const st = buildStatement(key, from, to);
+  const info = computeAll(asOf).find(r => r.key === key);
+  const isAcct = session.role === 'accountant';
+  if (isAcct){ $('stMgrRow').style.display = ''; $('stManager').value = c.manager || ''; }
+  const mname = c.manager ? managerName(c.manager) : '—';
+  let h = '<div class="stmt"><div class="co">' + esc(D.company) + '</div><h2>ТООЦООНЫ АКТ</h2>' +
+    '<table class="kv"><tr><td>Харилцагч:</td><td><b>' + esc(c.name) + '</b></td></tr>' +
+    (c.regNo ? '<tr><td>Регистр:</td><td>' + esc(c.regNo) + '</td></tr>' : '') +
+    '<tr><td>Хугацаа:</td><td>' + (from || to ? esc(showDate(from) || '…') + ' – ' + esc(showDate(to) || '…') : 'Бүх хугацаа') + '</td></tr>' +
+    '<tr><td>Хариуцсан менежер:</td><td>' + esc(mname) + '</td></tr></table>' +
+    '<div class="tscroll" style="margin-top:12px"><table class="grid"><thead><tr><th>Огноо</th><th>Төрөл</th><th>Дугаар</th><th>Тайлбар</th><th class="num">Нэхэмжилсэн (+)</th><th class="num">Төлсөн (−)</th><th class="num">Үлдэгдэл</th>' + (isAcct ? '<th class="no-print"></th>' : '') + '</tr></thead><tbody>';
+  const lines = ['ТООЦООНЫ АКТ — ' + c.name, 'Хугацаа: ' + (from || to ? (showDate(from) || '…') + ' – ' + (showDate(to) || '…') : 'Бүх хугацаа'), ''];
+  if (from){ h += '<tr><td colspan="6"><i>Эхний үлдэгдэл</i></td><td class="num"><b>' + fmt(st.opening) + '</b></td>' + (isAcct ? '<td class="no-print"></td>' : '') + '</tr>'; lines.push('Эхний үлдэгдэл: ' + fmt(st.opening)); }
+  st.rows.forEach(e => {
+    const del = isAcct ? '<td class="no-print"><button class="btn danger small" data-act="' + (e.kind === 'inv' ? 'delInv' : 'delPay') + '" data-key="' + esc(key) + '" data-no="' + esc(e.ref) + '" data-id="' + esc(e.id || '') + '">×</button></td>' : '';
+    h += '<tr><td>' + showDate(e.date) + '</td><td>' + (e.kind === 'inv' ? 'Нэхэмжлэх' : 'Төлөлт') + '</td><td>' + esc(e.ref) + '</td><td>' + esc(e.note) + '</td>' +
+      '<td class="num">' + (e.debit ? fmt(e.debit) : '') + '</td><td class="num">' + (e.credit ? fmt(e.credit) : '') + '</td><td class="num">' + fmt(e.balance) + '</td>' + del + '</tr>';
+    lines.push(showDate(e.date) + '  ' + (e.kind === 'inv' ? 'Нэхэмжлэх' : 'Төлөлт') + ' ' + e.ref + '  ' + (e.debit ? '+' + fmt(e.debit) : '-' + fmt(e.credit)) + '  үлдэгдэл ' + fmt(e.balance));
+  });
+  h += '<tr class="total"><td colspan="4">Нийт / Эцсийн үлдэгдэл</td><td class="num">' + fmt(st.totalDebit) + '</td><td class="num">' + fmt(st.totalCredit) + '</td><td class="num">' + fmt(st.closing) + '</td>' + (isAcct ? '<td class="no-print"></td>' : '') + '</tr></tbody></table></div>';
+  lines.push('', 'Эцсийн үлдэгдэл: ' + fmt(st.closing) + '₮');
+  if (info && info.overdue > 0.005){
+    h += '<p style="margin-top:12px"><b>Хугацаа хэтэрсэн:</b> ' + money(info.overdue) + ' (хамгийн удаан ' + info.maxDays + ' хоног) · ' + esc(showDate(asOf)) + '-ны байдлаар</p>';
+    lines.push('Хугацаа хэтэрсэн: ' + fmt(info.overdue) + '₮ (хамгийн удаан ' + info.maxDays + ' хоног)');
+  }
+  h += '<div class="sign"><div>Нягтлан бодогч: ………………………</div><div>Харилцагч: ………………………</div></div></div>';
+  out.innerHTML = h; ui.stText = lines.join('\n');
+}
+function copyText(text){
+  if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(text);
+  return new Promise((res, rej) => {
+    const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); res(); } catch (e){ rej(e); } finally { ta.remove(); }
+  });
+}
+function copyStatement(){ if (!ui.stText) return; copyText(ui.stText).then(() => setToast('Хуулагдлаа ✓', 'ok', 2000), () => setToast('Хуулж чадсангүй', 'err', 3000)); }
+
+/* ===== Төлөлт ===== */
+function fillPayInvoices(){
+  const sel = $('payInvoice'); const key = findCustomerKey($('payCustomer').value);
+  let h = '<option value="">— Хамгийн хуучнаас нь хаана —</option>';
+  if (key){
+    const info = computeAll(todayISO()).find(r => r.key === key);
+    if (info) info.open.sort((a, b) => a.due < b.due ? -1 : 1).forEach(o => { h += '<option value="' + esc(o.no) + '">' + esc(o.no) + ' — үлдэгдэл ' + fmt(o.rem) + '₮</option>'; });
+  }
+  sel.innerHTML = h;
+}
+function addPayment(){
+  if (session.role !== 'accountant') return;
+  const name = $('payCustomer').value, key = findCustomerKey(name);
+  const date = $('payDate').value, amount = parseAmount($('payAmount').value);
+  if (!key) return setToast('Харилцагч олдсонгүй. Жагсаалтаас сонгоно уу (шинэ харилцагч бол эхлээд нэхэмжлэх оруулна).', 'err', 5000);
+  if (!parseDateCell(date)) return setToast('Огноо буруу байна.', 'err', 4000);
+  if (isNaN(amount) || amount <= 0) return setToast('Төлсөн дүн 0-ээс их байх ёстой.', 'err', 4000);
+  D.payments.push({ id:uid(), customer:key, invoiceNo:$('payInvoice').value, date, amount:r2(amount), note:$('payNote').value.trim() });
+  $('payAmount').value = ''; $('payNote').value = ''; $('payInvoice').value = '';
+  markDirty(); renderPayments(); fillPayInvoices();
+  setToast('Төлөлт нэмэгдлээ. Дээд талын "Хадгалах"-ыг дарна уу.', 'ok', 3500);
+}
+function renderPayments(){
+  if (!D) return;
+  const q = normName($('payFilter').value);
+  let rows = D.payments.map(p => ({ p, name:(D.customers[p.customer] || {}).name || p.customer }));
+  if (q) rows = rows.filter(r => normName(r.name + ' ' + r.p.invoiceNo + ' ' + r.p.note).indexOf(q) >= 0);
+  rows.sort((a, b) => a.p.date < b.p.date ? 1 : a.p.date > b.p.date ? -1 : 0);
+  const isAcct = session.role === 'accountant';
+  if (!rows.length){ $('payTable').innerHTML = '<div class="empty">Төлөлт бүртгэгдээгүй байна.</div>'; return; }
+  const LIMIT = 300;
+  $('payTable').innerHTML = '<table class="grid"><thead><tr><th>Огноо</th><th>Харилцагч</th><th>Нэхэмжлэх</th><th class="num">Дүн</th><th>Тайлбар</th>' + (isAcct ? '<th class="no-print"></th>' : '') + '</tr></thead><tbody>' +
+    rows.slice(0, LIMIT).map(r => '<tr><td>' + showDate(r.p.date) + '</td><td>' + esc(r.name) + '</td><td>' + esc(r.p.invoiceNo) + '</td><td class="num">' + fmt(r.p.amount) + '</td><td>' + esc(r.p.note) + '</td>' +
+      (isAcct ? '<td class="no-print"><button class="btn danger small" data-act="delPay" data-id="' + esc(r.p.id) + '">Устгах</button></td>' : '') + '</tr>').join('') +
+    '</tbody></table>' + (rows.length > LIMIT ? '<div class="muted" style="padding:8px 2px">Сүүлийн ' + LIMIT + ' төлөлтийг харуулж байна (нийт ' + rows.length + ').</div>' : '');
+}
+function deletePayment(id){
+  if (session.role !== 'accountant' || !confirm('Энэ төлөлтийг устгах уу?')) return;
+  D.payments = D.payments.filter(p => p.id !== id); markDirty(); renderAll();
+}
+function deleteInvoice(key, no){
+  if (session.role !== 'accountant' || !confirm('"' + no + '" нэхэмжлэхийг устгах уу?')) return;
+  D.invoices = D.invoices.filter(i => !(i.customer === key && i.no === no)); markDirty(); renderAll();
+}
+
+/* ===== Сануулга ===== */
+function fillTemplate(tpl, name, total, lines, asOf){
+  return tpl.split('{харилцагч}').join(name).split('{нийт}').join(fmt(total)).split('{жагсаалт}').join(lines.join('\n')).split('{огноо}').join(showDate(asOf));
+}
+function buildReminders(){
+  const minDays = Math.max(0, parseInt($('rmMin').value, 10) || 0), mg = $('rmManager').value, asOf = $('asOf').value;
+  let all = computeAll(asOf);
+  if (session.role === 'accountant' && mg) all = all.filter(r => mg === '__none__' ? !r.manager : r.manager === mg);
+  const out = [];
+  all.forEach(r => {
+    const inv = r.open.filter(o => o.days >= Math.max(1, minDays)).sort((a, b) => b.days - a.days);
+    if (!inv.length) return;
+    const total = inv.reduce((s, o) => s + o.rem, 0);
+    const lines = inv.map(o => '• №' + o.no + ' — ' + showDate(o.due) + '-нд төлөх, ' + fmt(o.rem) + '₮ (' + o.days + ' хоног хэтэрсэн)');
+    out.push({ key:r.key, name:r.name, manager:r.manager, total, days:inv[0].days, count:inv.length, text:fillTemplate(D.settings.reminderTemplate, r.name, total, lines, asOf) });
+  });
+  out.sort((a, b) => b.total - a.total);
+  return out;
+}
+function renderReminders(){
+  if (!D) return;
+  const list = buildReminders(); ui.remTexts = {};
+  if (!list.length){ $('rmList').innerHTML = '<div class="box"><div class="empty">Хугацаа хэтэрсэн авлага олдсонгүй 🎉</div></div>'; return; }
+  $('rmList').innerHTML = '<div class="muted" style="margin:0 2px 10px">' + list.length + ' харилцагч · нийт ' + money(list.reduce((s, x) => s + x.total, 0)) + '</div>' +
+    list.map(x => {
+      ui.remTexts[x.key] = x.text;
+      const mname = x.manager ? managerName(x.manager) : '';
+      return '<div class="remcard"><div class="top"><div><span class="name">' + esc(x.name) + '</span> <span class="muted">' + (mname ? '· ' + esc(mname) : '') + '</span></div>' +
+        '<div><b>' + money(x.total) + '</b> <span class="muted">· ' + x.count + ' нэхэмжлэх · хамгийн удаан ' + x.days + ' хоног</span></div></div>' +
+        '<textarea data-key="' + esc(x.key) + '" rows="' + (x.text.split('\n').length + 1) + '">' + esc(x.text) + '</textarea>' +
+        '<div style="margin-top:8px"><button class="btn small" data-act="copyRem" data-key="' + esc(x.key) + '">Хуулах</button></div></div>';
+    }).join('');
+}
+function copyAllReminders(){
+  const tas = document.querySelectorAll('#rmList textarea');
+  if (!tas.length) return;
+  copyText(Array.from(tas).map(t => t.value).join('\n\n----------\n\n')).then(() => setToast(tas.length + ' мессеж хуулагдлаа ✓', 'ok', 2500), () => setToast('Хуулж чадсангүй', 'err', 3000));
+}
+
+/* ===== Excel оруулах ===== */
+function downloadTemplate(){
+  const inv = [['Харилцагч','Регистр','Нэхэмжлэхийн дугаар','Нэхэмжилсэн огноо','Төлбөрийн хугацаа (хоног)','Төлөх огноо','Дүн','Менежер','Тайлбар'],
+               ['Жишээ ХХК','1234567','INV-0001','2026-09-01',30,'',1500000,'Менежерийн нэр','Жишээ мөр — устгана уу']];
+  const pay = [['Харилцагч','Нэхэмжлэхийн дугаар','Төлсөн огноо','Төлсөн дүн','Тайлбар'],
+               ['Жишээ ХХК','INV-0001','2026-09-20',500000,'Жишээ мөр — устгана уу']];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(inv), 'Нэхэмжлэх');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(pay), 'Төлөлт');
+  XLSX.writeFile(wb, 'avlaga_zagvar.xlsx');
+}
+async function previewImport(type){
+  if (session.role !== 'accountant') return;
+  const input = $(type === 'inv' ? 'impInvFile' : 'impPayFile'), box = $('impPreview');
+  if (!input.files || !input.files[0]) return setToast('Эхлээд Excel файл сонгоно уу.', 'err', 3500);
+  try {
+    const buf = await readFileBuffer(input.files[0]);
+    const wb = XLSX.read(new Uint8Array(buf), { type:'array' });
+    const res = parseWorkbook(wb, type);
+    if (!res.sheets.length){
+      pending = null;
+      box.innerHTML = '<div class="box"><div class="msg show err">' + (type === 'inv'
+        ? 'Нэхэмжлэхийн баганын толгой олдсонгүй. Шаардлагатай баганууд: Харилцагч, Нэхэмжлэхийн дугаар, Нэхэмжилсэн огноо, Дүн.'
+        : 'Төлөлтийн баганын толгой олдсонгүй. Шаардлагатай баганууд: Харилцагч, Төлсөн огноо, Төлсөн дүн.') + ' Загвараа татаж харна уу.</div></div>';
+      return;
+    }
+    pending = { type, items:res.items, errors:res.errors };
+    renderPending(res);
+  } catch (e){ box.innerHTML = '<div class="box"><div class="msg show err">Алдаа: ' + esc(e.message) + '</div></div>'; }
+}
+function renderPending(res){
+  const box = $('impPreview'), type = pending.type, items = pending.items;
+  let stats = '', warn = '';
+  if (type === 'inv'){
+    const idx = new Map(); D.invoices.forEach(i => idx.set(i.customer + '\u0001' + i.no, i));
+    let add = 0, upd = 0, same = 0; const newC = new Set(), badMgr = {}; const seenInFile = new Set(); let dupInFile = 0;
+    items.forEach(it => {
+      const key = normName(it.customerName), k = key + '\u0001' + it.no;
+      if (seenInFile.has(k)) dupInFile++; seenInFile.add(k);
+      const old = idx.get(k);
+      if (!old) add++; else if (old.date !== it.date || old.due !== it.due || old.amount !== it.amount || (old.note || '') !== it.note) upd++; else same++;
+      if (!D.customers[key]) newC.add(key);
+      if (it.managerText && !resolveManager(it.managerText)) badMgr[it.managerText] = (badMgr[it.managerText] || 0) + 1;
+    });
+    stats = '<b>' + add + '</b> шинэ · <b>' + upd + '</b> шинэчлэгдэх · ' + same + ' өөрчлөгдөөгүй · <b>' + newC.size + '</b> шинэ харилцагч';
+    if (dupInFile) warn += '<div class="msg show info">Файлд давхардсан нэхэмжлэхийн дугаар ' + dupInFile + ' байна — сүүлийн мөр нь хүчинтэй болно.</div>';
+    const bm = Object.keys(badMgr);
+    if (bm.length) warn += '<div class="msg show info">Бүртгэлгүй менежер: ' + bm.map(esc).join(', ') + '. "Менежер" хэсгээс нэмбэл автоматаар холбогдоно (одоогоор эдгээр харилцагчийг зөвхөн та харна).</div>';
+  } else {
+    const plan = planPayments(items);
+    const newC = new Set(); plan.fresh.forEach(it => { if (!D.customers[normName(it.customerName)]) newC.add(normName(it.customerName)); });
+    stats = '<b>' + plan.fresh.length + '</b> шинэ төлөлт · ' + plan.dups.length + ' давхардсан (алгасна) · <b>' + newC.size + '</b> шинэ харилцагч';
+    pending.fresh = plan.fresh;
+    if (newC.size) warn += '<div class="msg show info">Нэхэмжлэхгүй шинэ харилцагч ' + newC.size + ' байна — төлөлт нь урьдчилгаа (илүү төлөлт) болж харагдана.</div>';
+  }
+  const sheetsInfo = res.sheets.map(s => esc(s.name) + ' (' + s.ok + (s.bad ? ' + ' + s.bad + ' алдаатай' : '') + ')').join(', ');
+  const sample = items.slice(0, 15);
+  let h = '<div class="box"><h3>Урьдчилан харах — ' + (type === 'inv' ? 'Нэхэмжлэх' : 'Төлөлт') + '</h3><div style="margin-bottom:8px">' + stats + '</div><div class="muted" style="margin-bottom:8px">Sheet: ' + sheetsInfo + '</div>' + warn;
+  if (res.errors.length){
+    h += '<div class="msg show err"><b>' + res.errors.length + ' алдаатай мөр алгасагдана:</b><br>' +
+      res.errors.slice(0, 15).map(e => esc((e.sheet || '') + ' мөр ' + e.row + ': ' + e.msg + (e.customer ? ' (' + e.customer + ')' : ''))).join('<br>') + (res.errors.length > 15 ? '<br>… (нийт ' + res.errors.length + ')' : '') + '</div>';
+  }
+  if (sample.length){
+    h += '<div class="tscroll" style="margin-top:10px"><table class="grid"><thead><tr><th>Харилцагч</th><th>' + (type === 'inv' ? 'Нэхэмжлэх' : 'Нэхэмжлэх (заавал биш)') + '</th><th>Огноо</th>' + (type === 'inv' ? '<th>Төлөх</th>' : '') + '<th class="num">Дүн</th>' + (type === 'inv' ? '<th>Менежер</th>' : '<th>Тайлбар</th>') + '</tr></thead><tbody>' +
+      sample.map(it => '<tr><td>' + esc(it.customerName) + '</td><td>' + esc(type === 'inv' ? it.no : it.invoiceNo) + '</td><td>' + showDate(it.date) + '</td>' + (type === 'inv' ? '<td>' + showDate(it.due) + '</td>' : '') + '<td class="num">' + fmt(it.amount) + '</td><td>' + esc(type === 'inv' ? it.managerText : it.note) + '</td></tr>').join('') +
+      '</tbody></table></div>' + (items.length > sample.length ? '<div class="muted" style="margin-top:6px">… нийт ' + items.length + ' мөрөөс эхний ' + sample.length + '-г харууллаа.</div>' : '');
+  }
+  h += '<div style="margin-top:14px; display:flex; gap:10px"><button class="btn" data-act="applyImport"' + (!items.length ? ' disabled' : '') + '>Нэмэх (түр)</button><button class="btn secondary" data-act="cancelImport">Болих</button></div></div>';
+  box.innerHTML = h;
+}
+function applyPending(){
+  if (!pending || session.role !== 'accountant') return;
+  let text;
+  if (pending.type === 'inv'){
+    const s = applyInvoices(pending.items);
+    text = s.added + ' нэхэмжлэх нэмэгдэж, ' + s.updated + ' шинэчлэгдлээ (' + s.newCustomers + ' шинэ харилцагч).';
+  } else {
+    const s = applyPayments(pending.fresh || pending.items);
+    text = s.added + ' төлөлт нэмэгдлээ (' + s.newCustomers + ' шинэ харилцагч).';
+  }
+  pending = null; $('impPreview').innerHTML = '';
+  $('impInvFile').value = ''; $('impPayFile').value = '';
+  markDirty(); refreshLookups();
+  setToast(text + ' Одоо дээд талын "Хадгалах"-ыг дарна уу.', 'ok', 6000);
+}
+
+/* ===== Менежер ===== */
+function renderManagers(){
+  if (!D) return;
+  const counts = {}, unmatched = {}; let noMgr = 0;
+  Object.values(D.customers).forEach(c => {
+    if (c.manager) counts[c.manager] = (counts[c.manager] || 0) + 1;
+    else if (c.managerRaw) unmatched[c.managerRaw] = (unmatched[c.managerRaw] || 0) + 1;
+    else noMgr++;
+  });
+  const us = Object.keys(D.managers).sort();
+  let h = '<div class="box"><h3>Борлуулалтын менежерүүд</h3><div class="sub" style="margin-bottom:12px">Менежер нэвтрэхдээ зөвхөн өөрт хамаарах харилцагчийн авлагыг харна. Өөрчлөлт "Хадгалах" дарсны дараа хүчинтэй болно. Нууц үгийг ажилтан бүрт тусад нь өгнө үү.</div>';
+  if (us.length){
+    h += '<div class="tscroll"><table class="grid"><thead><tr><th>Нэвтрэх нэр</th><th>Нэр (Excel-ийн "Менежер" баганатай таарна)</th><th>Нууц үг</th><th class="num">Харилцагч</th><th></th></tr></thead><tbody>' +
+      us.map(u => { const m = D.managers[u]; return '<tr><td>' + esc(u) + '</td>' +
+        '<td><input type="text" value="' + esc(m.name) + '" onchange="setMgrField(\'' + esc(u) + '\',\'name\',this.value)"></td>' +
+        '<td><input type="text" value="' + esc(m.password) + '" onchange="setMgrField(\'' + esc(u) + '\',\'password\',this.value)"></td>' +
+        '<td class="num">' + (counts[u] || 0) + '</td>' +
+        '<td><button class="btn secondary small" data-act="genPassFor" data-u="' + esc(u) + '">Шинэ нууц үг</button> <button class="btn danger small" data-act="delMgr" data-u="' + esc(u) + '">Устгах</button></td></tr>'; }).join('') + '</tbody></table></div>' +
+      '<div style="margin-top:12px"><button class="btn secondary small" onclick="downloadManagerCsv()">Нэвтрэх мэдээлэл татах (CSV)</button> <span class="muted">Тарааж дууссаны дараа файлыг устгана уу.</span></div>';
+  } else h += '<div class="empty">Менежер бүртгэгдээгүй байна.</div>';
+  h += '</div>';
+  h += '<div class="box"><h3>+ Менежер нэмэх</h3><div class="grid4">' +
+    '<div class="field"><label>Нэр (Excel-ийн "Менежер" баганатай ижил бичнэ)</label><input type="text" id="mgName" oninput="suggestMgrUser()"></div>' +
+    '<div class="field"><label>Нэвтрэх нэр (латин)</label><input type="text" id="mgUser"></div>' +
+    '<div class="field"><label>Нууц үг</label><input type="text" id="mgPass"></div></div>' +
+    '<button class="btn secondary" data-act="genPassNew">Санамсаргүй нууц үг</button> <button class="btn" onclick="addManager()">Нэмэх</button></div>';
+  const un = Object.keys(unmatched);
+  if (un.length || noMgr){
+    h += '<div class="box"><h3>Менежергүй харилцагчид</h3>' +
+      (un.length ? '<div class="sub" style="margin-bottom:8px">Excel-д бичигдсэн боловч бүртгэлгүй менежерүүд:</div>' + un.map(n => '<div style="margin-bottom:6px">' + esc(n) + ' <span class="muted">· ' + unmatched[n] + ' харилцагч</span> <button class="btn secondary small" data-act="addMgrFrom" data-name="' + esc(n) + '">Менежер болгон нэмэх</button></div>').join('') : '') +
+      (noMgr ? '<div class="muted" style="margin-top:8px">' + noMgr + ' харилцагчид менежер заагаагүй — зөвхөн та харна. "Харилцагч & акт" хэсгээс гараар оноож болно.</div>' : '') + '</div>';
+  }
+  $('mgBody').innerHTML = h;
+}
+function setMgrField(u, f, v){
+  if (!D.managers[u]) return;
+  D.managers[u][f] = v.trim();
+  if (f === 'name') relinkManagers();
+  markDirty(); refreshLookups();
+}
+function suggestMgrUser(){ const u = $('mgUser'); if (u && !u.dataset.touched) u.value = suggestUsername($('mgName').value); }
+function addManagerWith(name){ setTab('managers'); $('mgName').value = name; $('mgUser').value = suggestUsername(name); $('mgPass').value = genPassword(10); $('mgName').scrollIntoView({ block:'center' }); }
+function addManager(){
+  const name = $('mgName').value.trim(), u = $('mgUser').value.trim().toLowerCase(), p = $('mgPass').value.trim();
+  if (!name) return setToast('Менежерийн нэрийг оруулна уу.', 'err', 3500);
+  if (!/^[a-z0-9_.-]{3,30}$/.test(u)) return setToast('Нэвтрэх нэр: латин жижиг үсэг, тоо, 3–30 тэмдэгт.', 'err', 4500);
+  if (u === session.username || D.managers[u]) return setToast('Энэ нэвтрэх нэр аль хэдийн байна.', 'err', 3500);
+  if (p.length < 8) return setToast('Нууц үг хамгийн багадаа 8 тэмдэгт байна.', 'err', 3500);
+  D.managers[u] = { name, password:p };
+  relinkManagers(); markDirty(); refreshLookups(); renderManagers();
+  setToast('"' + name + '" нэмэгдлээ. "Хадгалах" дарна уу.', 'ok', 4000);
+}
+function deleteManager(u){
+  if (!D.managers[u] || !confirm('"' + u + '" менежерийг устгах уу? Харилцагчид нь "менежергүй" болно.')) return;
+  const nm = D.managers[u].name;
+  Object.values(D.customers).forEach(c => { if (c.manager === u){ c.manager = ''; c.managerRaw = c.managerRaw || nm; } });
+  delete D.managers[u]; markDirty(); refreshLookups(); renderManagers();
+}
+function downloadManagerCsv(){
+  const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const lines = [['Нэвтрэх нэр','Нэр','Нууц үг'].map(q).join(',')];
+  Object.keys(D.managers).sort().forEach(u => lines.push([u, D.managers[u].name, D.managers[u].password].map(q).join(',')));
+  const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type:'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob), a = document.createElement('a');
+  a.href = url; a.download = 'avlaga_menejer_nuuts_ug.csv'; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/* ===== Тохиргоо ===== */
+function renderSettings(){
+  if (!D) return;
+  const link = shareLink(), baked = !!(CONFIG.GIST_ID && CONFIG.GIST_USER);
+  $('setBody').innerHTML =
+    '<div class="box"><h3>Менежерүүдэд өгөх холбоос</h3><div class="sub" style="margin-bottom:8px">Менежерүүд энэ холбоосоор орж, өөрийн нэвтрэх нэр, нууц үгээр нэвтэрнэ. Холбоос дотор зөвхөн өгөгдлийн сангийн хаяг байгаа (өгөгдөл шифрлэгдсэн тул нууц биш).</div>' +
+    '<div style="display:flex; gap:8px; flex-wrap:wrap"><input type="text" id="shareLinkInput" readonly value="' + esc(link) + '" style="flex:1; min-width:260px" onclick="this.select()">' +
+    '<button class="btn small" onclick="copyText($(\'shareLinkInput\').value).then(()=>setToast(\'Холбоос хуулагдлаа ✓\',\'ok\',2000))">Хуулах</button></div>' +
+    (baked ? '' : '<div class="muted" style="margin-top:8px">Богино хаяг (<code>avlaga.html</code>) хүсвэл Gist ID: <b>' + esc(GIST.id) + '</b> · эзэмшигч: <b>' + esc(GIST.user) + '</b> гэж Claude-д өгч файлд суулгуулна уу.</div>') + '</div>' +
+    '<div class="box"><h3>Ерөнхий</h3><div class="field" style="max-width:260px"><label>Нэхэмжлэхийн төлөх хугацаа — Excel-д заагаагүй үед (хоног)</label>' +
+    '<input type="number" min="0" id="setTerm" value="' + esc(D.settings.termDays) + '" onchange="D.settings.termDays=Math.max(0,parseInt(this.value,10)||0);markDirty()"></div>' +
+    '<div class="muted">Зөвхөн дараа оруулах нэхэмжлэхэд үйлчилнэ.</div></div>' +
+    '<div class="box"><h3>Сануулгын мессежийн загвар</h3><div class="sub" style="margin-bottom:8px">Ашиглаж болох тэмдэглэгээ: <code>{харилцагч}</code> <code>{нийт}</code> <code>{жагсаалт}</code> <code>{огноо}</code></div>' +
+    '<textarea id="setTpl" style="min-height:170px" onchange="D.settings.reminderTemplate=this.value;markDirty()">' + esc(D.settings.reminderTemplate) + '</textarea>' +
+    '<div style="margin-top:8px"><button class="btn secondary small" onclick="resetTemplate()">Анхны загвар руу буцаах</button></div></div>' +
+    '<div class="box"><h3>Нууц үг солих</h3><div class="grid4"><div class="field"><label>Одоогийн нууц үг</label><input type="password" id="pwOld" autocomplete="current-password"></div>' +
+    '<div class="field"><label>Шинэ нууц үг (10+)</label><input type="password" id="pwNew" autocomplete="new-password"></div>' +
+    '<div class="field"><label>Шинэ нууц үг давтах</label><input type="password" id="pwNew2" autocomplete="new-password"></div></div>' +
+    '<button class="btn" onclick="changeMyPassword()">Солих</button> <span class="muted">Хадгалсны дараа хүчинтэй болно. Мартвал өгөгдлийг сэргээх боломжгүй.</span></div>' +
+    '<div class="box"><h3>GitHub token</h3><div>Төлөв: <b id="tokState">' + (session.token ? 'Оруулсан (энэ хуудас хаагдтал)' : 'Оруулаагүй') + '</b> ' +
+    '<button class="btn secondary small" onclick="session.token=\'\';renderSettings()">Token мартах</button></div></div>' +
+    '<div class="box"><h3>Нөөцлөл</h3><div class="sub" style="margin-bottom:8px">Шифрлэгдсэн нөөц файл (нууц үггүйгээр уншигдахгүй).</div>' +
+    '<button class="btn secondary" onclick="downloadBackup()">Нөөц татах (.json)</button></div>';
+}
+function resetTemplate(){ D.settings.reminderTemplate = DEFAULT_TEMPLATE; markDirty(); renderSettings(); }
+function changeMyPassword(){
+  const o = $('pwOld').value, n = $('pwNew').value, n2 = $('pwNew2').value;
+  if (o !== session.password) return setToast('Одоогийн нууц үг буруу байна.', 'err', 4000);
+  if (n.length < 10) return setToast('Шинэ нууц үг хамгийн багадаа 10 тэмдэгт байна.', 'err', 4000);
+  if (n !== n2) return setToast('Шинэ нууц үг таарахгүй байна.', 'err', 4000);
+  session.password = n; markDirty(); renderSettings();
+  setToast('Шинэ нууц үг тохирлоо. "Хадгалах" дарснаар хүчин төгөлдөр болно.', 'ok', 5000);
+}
+function downloadBackup(){
+  if (!wrapper) return;
+  const blob = new Blob([JSON.stringify(wrapper)], { type:'application/json' });
+  const url = URL.createObjectURL(blob), a = document.createElement('a');
+  a.href = url; a.download = 'avlaga_backup_' + todayISO() + '.json'; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/* ===== Хадгалах ===== */
+function askToken(){
+  return new Promise(res => {
+    if (session.token) return res(session.token);
+    const m = $('tokenModal'), inp = $('tokenInput');
+    inp.value = ''; m.classList.add('show'); inp.focus();
+    const done = v => { m.classList.remove('show'); $('tokenOk').onclick = null; $('tokenCancel').onclick = null; if (v) session.token = v; res(v || null); };
+    $('tokenOk').onclick = () => done(inp.value.trim());
+    $('tokenCancel').onclick = () => done(null);
+  });
+}
+async function saveAll(){
+  if (!session || session.role !== 'accountant') return;
+  const btn = $('saveBtn');
+  const token = await askToken();
+  if (!token) return;
+  btn.disabled = true; setToast('Хадгалж байна… (шифрлэж байна)', 'info', 0);
+  try {
+    const cur = await apiGetWrapper(token);
+    const curRev = cur ? (cur.rev || 0) : 0;
+    if (curRev !== session.rev) throw mkErr('CONFLICT', 'Өгөгдлийг өөр хүн/төхөөрөмж өөрчилсөн байна. Таны өөрчлөлт хадгалагдаагүй — хуудсыг шинэчилж дахин нэвтэрнэ үү.');
+    const next = await buildWrapper(curRev + 1);
+    await apiPutWrapper(token, next);
+    wrapper = next; session.rev = next.rev; session.dirty = false; updateDirty();
+    setToast('Амжилттай хадгалагдлаа ✓', 'ok', 4000);
+  } catch (e){
+    if (e.code === 'TOKEN') session.token = '';
+    setToast('Алдаа: ' + e.message, 'err', 0);
+  } finally { btn.disabled = false; }
+}
+
+/* ===== Товчны үйлдлүүд (event delegation) ===== */
+document.addEventListener('click', ev => {
+  const el = ev.target.closest('[data-act]');
+  if (!el || !D) return;
+  const a = el.dataset.act, isAcct = session && session.role === 'accountant';
+  if (a === 'tab') setTab(el.dataset.tab);
+  else if (a === 'sort'){ const k = el.dataset.col; if (ui.sortKey === k) ui.sortDir = -ui.sortDir; else { ui.sortKey = k; ui.sortDir = (k === 'name' || k === 'manager') ? 1 : -1; } renderAging(); }
+  else if (a === 'openStatement'){ if (D.customers[el.dataset.key]) openStatement(el.dataset.key); }
+  else if (a === 'copyRem'){ const ta = el.closest('.remcard').querySelector('textarea'); copyText(ta.value).then(() => { el.textContent = 'Хуулагдлаа ✓'; setTimeout(() => { el.textContent = 'Хуулах'; }, 1800); }, () => setToast('Хуулж чадсангүй', 'err', 3000)); }
+  else if (!isAcct) return;
+  else if (a === 'delPay') deletePayment(el.dataset.id);
+  else if (a === 'delInv') deleteInvoice(el.dataset.key, el.dataset.no);
+  else if (a === 'applyImport') applyPending();
+  else if (a === 'cancelImport'){ pending = null; $('impPreview').innerHTML = ''; }
+  else if (a === 'delMgr') deleteManager(el.dataset.u);
+  else if (a === 'addMgrFrom') addManagerWith(el.dataset.name);
+  else if (a === 'genPassNew') $('mgPass').value = genPassword(10);
+  else if (a === 'genPassFor'){ const u = el.dataset.u; if (D.managers[u]){ D.managers[u].password = genPassword(10); markDirty(); renderManagers(); } }
+});
+document.addEventListener('input', ev => { if (ev.target && ev.target.id === 'mgUser') ev.target.dataset.touched = '1'; });
+
+init();
+</script>
+</body>
+</html>
